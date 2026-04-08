@@ -14,6 +14,7 @@ class WaterLevelService {
       queryParameters: {
         'sort': '-timestamp',
         'page[limit]': '1',
+        'include': 'quantity',
       },
     );
     if (data.isEmpty) return null;
@@ -30,6 +31,7 @@ class WaterLevelService {
         'sort': '-timestamp',
         'page[limit]': pageSize.toString(),
         'page[offset]': (page * pageSize).toString(),
+        'include': 'quantity',
       },
     );
     return data.map((d) => WaterLevelLog.fromJsonApi(d)).toList();
@@ -43,6 +45,7 @@ class WaterLevelService {
         'sort': 'timestamp',
         'filter[timestamp][operator]': '>=',
         'filter[timestamp][value]': (since.millisecondsSinceEpoch ~/ 1000).toString(),
+        'include': 'quantity',
       },
     );
     return data.map((d) => WaterLevelLog.fromJsonApi(d)).toList();

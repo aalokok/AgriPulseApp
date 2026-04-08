@@ -66,6 +66,10 @@ class FarmosClient {
   // ── JSON:API helpers ──────────────────────────────────────────────────
 
   /// GET a JSON:API collection, returning the `data` array.
+  ///
+  /// When [include] is specified, the related resources are resolved into each
+  /// data item under a synthetic `_included` key so callers can access them
+  /// without a second round-trip.
   Future<List<Map<String, dynamic>>> getCollection(
     String resourceType, {
     Map<String, String>? queryParameters,
@@ -74,8 +78,21 @@ class FarmosClient {
       '$_baseUrl/$resourceType',
       queryParameters: queryParameters,
     );
-    final data = response.data['data'];
-    return (data as List).cast<Map<String, dynamic>>();
+    final data =
+        (response.data['data'] as List).cast<Map<String, dynamic>>();
+
+    final rawIncluded = response.data['included'] as List?;
+    if (rawIncluded != null && rawIncluded.isNotEmpty) {
+      final includedById = <String, Map<String, dynamic>>{
+        for (final item in rawIncluded.cast<Map<String, dynamic>>())
+          '${item['type']}:${item['id']}': item,
+      };
+      for (final item in data) {
+        item['_included'] = includedById;
+      }
+    }
+
+    return data;
   }
 
   /// GET a single JSON:API resource, returning the `data` object.

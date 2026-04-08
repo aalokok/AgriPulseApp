@@ -33,19 +33,41 @@ class WaterLevelLog {
       ts = DateTime.now().toUtc();
     }
 
-    // Parse quantity array — grab first measurement value
+    // Resolve quantity from JSON:API relationships + included resources.
+    // The client attaches a `_included` map keyed by "type:id".
     double? waterValue;
     String waterUnits = 'cm';
-    final quantities = attributes['quantity'];
-    if (quantities is List && quantities.isNotEmpty) {
-      final q = quantities.first as Map<String, dynamic>;
-      final rawVal = q['value'];
-      if (rawVal is num) {
-        waterValue = rawVal.toDouble();
-      } else if (rawVal is String) {
-        waterValue = double.tryParse(rawVal);
+    final relationships =
+        jsonApiData['relationships'] as Map<String, dynamic>? ?? {};
+    final quantityRel = relationships['quantity'] as Map<String, dynamic>?;
+    final includedMap =
+        jsonApiData['_included'] as Map<String, Map<String, dynamic>>?;
+
+    if (quantityRel != null && includedMap != null) {
+      final relData = quantityRel['data'];
+      final refs = relData is List ? relData : (relData != null ? [relData] : []);
+      for (final ref in refs) {
+        final key = '${ref['type']}:${ref['id']}';
+        final included = includedMap[key];
+        if (included == null) continue;
+        final qAttrs = included['attributes'] as Map<String, dynamic>? ?? {};
+        final rawVal = qAttrs['value'];
+        if (rawVal is Map) {
+          final decimal = rawVal['decimal'];
+          waterValue = decimal is String
+              ? double.tryParse(decimal)
+              : (decimal is num ? decimal.toDouble() : null);
+        } else if (rawVal is num) {
+          waterValue = rawVal.toDouble();
+        } else if (rawVal is String) {
+          waterValue = double.tryParse(rawVal);
+        }
+        final label = qAttrs['label'] as String?;
+        if (label != null && label.isNotEmpty) {
+          waterUnits = 'cm';
+        }
+        if (waterValue != null) break;
       }
-      waterUnits = q['units'] as String? ?? 'cm';
     }
 
     return WaterLevelLog(

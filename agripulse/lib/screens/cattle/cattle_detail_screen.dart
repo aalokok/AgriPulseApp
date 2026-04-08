@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../providers/animal_record_provider.dart';
 import '../../providers/animal_provider.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/status_badge.dart';
@@ -72,6 +74,14 @@ class CattleDetailScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => context.go('/cattle/$id/records/new'),
+              icon: const Icon(Icons.note_add_outlined),
+              label: const Text('Add Record'),
+            ),
+            const SizedBox(height: 16),
+            _RecordSection(animalId: id),
+            const SizedBox(height: 16),
 
             // Details card
             Card(
@@ -176,6 +186,103 @@ class CattleDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RecordSection extends ConsumerWidget {
+  final String animalId;
+
+  const _RecordSection({required this.animalId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final recordsAsync = ref.watch(animalRecordsProvider(animalId));
+    final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: recordsAsync.when(
+          loading: () => const LoadingIndicator(message: 'Loading records...'),
+          error: (e, _) => Text(
+            'Could not load records: $e',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.error),
+          ),
+          data: (records) {
+            if (records.isEmpty) {
+              return const Text('No records yet for this animal.');
+            }
+            final top = records.take(8).toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recent Records',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                for (var i = 0; i < top.length; i++) ...[
+                  _RecordRow(
+                    title: top[i].title,
+                    typeLabel: top[i].type.label,
+                    subtitle: top[i].timestamp != null
+                        ? dateFormat.format(top[i].timestamp!.toLocal())
+                        : null,
+                  ),
+                  if (i != top.length - 1) const Divider(height: 20),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _RecordRow extends StatelessWidget {
+  final String title;
+  final String typeLabel;
+  final String? subtitle;
+
+  const _RecordRow({
+    required this.title,
+    required this.typeLabel,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.event_note_outlined,
+            size: 18, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle == null ? typeLabel : '$typeLabel • $subtitle',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

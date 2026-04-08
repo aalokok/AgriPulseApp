@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
+import '../screens/cattle/animal_record_form_screen.dart';
 import '../screens/cattle/cattle_detail_screen.dart';
 import '../screens/cattle/cattle_form_screen.dart';
 import '../screens/cattle/cattle_list_screen.dart';
@@ -62,6 +63,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                   path: 'new',
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const CattleFormScreen(),
+                ),
+                GoRoute(
+                  path: ':id/records/new',
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) => AnimalRecordFormScreen(
+                    animalId: state.pathParameters['id']!,
+                  ),
                 ),
                 GoRoute(
                   path: ':id',

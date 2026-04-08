@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
 import '../services/farmos_client.dart';
 import '../services/animal_service.dart';
+import '../services/animal_record_service.dart';
 import '../services/water_level_service.dart';
 
 // ── Core service singletons ─────────────────────────────────────────────
@@ -16,6 +17,10 @@ final farmosClientProvider = Provider<FarmosClient>((ref) {
 
 final animalServiceProvider = Provider<AnimalService>((ref) {
   return AnimalService(ref.read(farmosClientProvider));
+});
+
+final animalRecordServiceProvider = Provider<AnimalRecordService>((ref) {
+  return AnimalRecordService(ref.read(farmosClientProvider));
 });
 
 final waterLevelServiceProvider = Provider<WaterLevelService>((ref) {

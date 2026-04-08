@@ -25,6 +25,7 @@ class FarmosClient {
   }
 
   String get _baseUrl => '${_authService.serverUrl}/api';
+  String get _serverUrl => _authService.serverUrl;
 
   Future<void> _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
@@ -132,5 +133,20 @@ class FarmosClient {
   /// DELETE a JSON:API resource.
   Future<void> deleteResource(String resourceType, String id) async {
     await _dio.delete('$_baseUrl/$resourceType/$id');
+  }
+
+  /// GET a custom (non-JSON:API) endpoint, returning the decoded JSON body.
+  Future<Map<String, dynamic>> getCustom(
+    String path, {
+    Map<String, String>? queryParameters,
+  }) async {
+    final response = await _dio.get(
+      '$_serverUrl$path',
+      queryParameters: queryParameters,
+      options: Options(headers: {
+        'Accept': 'application/json',
+      }),
+    );
+    return response.data as Map<String, dynamic>;
   }
 }

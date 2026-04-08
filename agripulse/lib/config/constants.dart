@@ -15,6 +15,7 @@ class AppConstants {
   static const String keyRefreshToken = 'refresh_token';
   static const String keyTokenExpiry = 'token_expiry';
   static const String keyUsername = 'username';
+  static const String keyOauthClientId = 'oauth_client_id';
 
   // SharedPreferences keys
   static const String keyThreshold = 'water_level_threshold';

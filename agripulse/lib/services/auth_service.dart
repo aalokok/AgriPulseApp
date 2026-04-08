@@ -24,6 +24,7 @@ class AuthService {
 
   AuthTokens? _tokens;
   String? _serverUrl;
+  String _oauthClientId = AppConstants.oauthClientId;
 
   AuthService({
     FlutterSecureStorage? storage,
@@ -32,6 +33,7 @@ class AuthService {
         _plainDio = dio ?? Dio();
 
   String? get serverUrl => _serverUrl;
+  String get oauthClientId => _oauthClientId;
   AuthTokens? get tokens => _tokens;
   bool get isAuthenticated => _tokens != null && _serverUrl != null;
 
@@ -41,12 +43,16 @@ class AuthService {
     final access = await _storage.read(key: AppConstants.keyAccessToken);
     final refresh = await _storage.read(key: AppConstants.keyRefreshToken);
     final expiryStr = await _storage.read(key: AppConstants.keyTokenExpiry);
+    final clientId = await _storage.read(key: AppConstants.keyOauthClientId);
 
     if (url == null || access == null || refresh == null || expiryStr == null) {
       return false;
     }
 
     _serverUrl = url;
+    _oauthClientId = (clientId == null || clientId.trim().isEmpty)
+        ? AppConstants.oauthClientId
+        : clientId;
     _tokens = AuthTokens(
       accessToken: access,
       refreshToken: refresh,
@@ -70,14 +76,19 @@ class AuthService {
     required String serverUrl,
     required String username,
     required String password,
+    String? oauthClientId,
   }) async {
-    final normalizedUrl = serverUrl.replaceAll(RegExp(r'/+$'), '');
+    final normalizedUrl = _normalizeServerUrl(serverUrl);
+    final normalizedClientId =
+        (oauthClientId == null || oauthClientId.trim().isEmpty)
+            ? AppConstants.oauthClientId
+            : oauthClientId.trim();
 
     final response = await _plainDio.post(
       '$normalizedUrl/oauth/token',
       data: {
         'grant_type': 'password',
-        'client_id': AppConstants.oauthClientId,
+        'client_id': normalizedClientId,
         'username': username,
         'password': password,
       },
@@ -85,7 +96,31 @@ class AuthService {
     );
 
     _serverUrl = normalizedUrl;
+    _oauthClientId = normalizedClientId;
     await _saveTokens(response.data as Map<String, dynamic>);
+  }
+
+  String _normalizeServerUrl(String rawUrl) {
+    var value = rawUrl.trim();
+    if (value.isEmpty) return value;
+
+    // Accept "farm.example.com" and default to HTTPS.
+    if (!value.contains('://')) {
+      value = 'https://$value';
+    }
+
+    // Keep only origin if user pastes a full page URL
+    // (e.g. https://host/dashboard?... -> https://host).
+    final parsed = Uri.tryParse(value);
+    if (parsed != null && parsed.hasScheme && parsed.host.isNotEmpty) {
+      final port = parsed.hasPort ? ':${parsed.port}' : '';
+      value = '${parsed.scheme}://${parsed.host}$port';
+    }
+
+    // Remove trailing slash and accidental "/api" suffix for base URL.
+    value = value.replaceAll(RegExp(r'/+$'), '');
+    value = value.replaceAll(RegExp(r'/api$', caseSensitive: false), '');
+    return value;
   }
 
   /// Refresh the access token using the refresh token.
@@ -98,7 +133,7 @@ class AuthService {
       '$_serverUrl/oauth/token',
       data: {
         'grant_type': 'refresh_token',
-        'client_id': AppConstants.oauthClientId,
+        'client_id': _oauthClientId,
         'refresh_token': _tokens!.refreshToken,
       },
       options: Options(contentType: Headers.formUrlEncodedContentType),
@@ -125,6 +160,8 @@ class AuthService {
 
     await Future.wait([
       _storage.write(key: AppConstants.keyServerUrl, value: _serverUrl!),
+      _storage.write(
+          key: AppConstants.keyOauthClientId, value: _oauthClientId),
       _storage.write(
           key: AppConstants.keyAccessToken, value: _tokens!.accessToken),
       _storage.write(

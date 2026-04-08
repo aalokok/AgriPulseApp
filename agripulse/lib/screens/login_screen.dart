@@ -14,6 +14,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _serverUrlController = TextEditingController();
+  final _clientIdController =
+      TextEditingController(text: AppConstants.oauthClientId);
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -21,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void dispose() {
     _serverUrlController.dispose();
+    _clientIdController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -31,6 +34,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     await ref.read(authProvider.notifier).login(
           serverUrl: _serverUrlController.text.trim(),
+          oauthClientId: _clientIdController.text.trim(),
           username: _usernameController.text.trim(),
           password: _passwordController.text,
         );
@@ -89,6 +93,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       final uri = Uri.tryParse(value.trim());
                       if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
                         return 'Please enter a valid URL (e.g. https://farm.example.com)';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _clientIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'OAuth Client ID',
+                      hintText: 'farm',
+                      prefixIcon: Icon(Icons.vpn_key_outlined),
+                    ),
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your OAuth client ID';
                       }
                       return null;
                     },

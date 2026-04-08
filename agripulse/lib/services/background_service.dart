@@ -22,6 +22,7 @@ Future<void> _performWaterLevelCheck() async {
     final serverUrl = await storage.read(key: AppConstants.keyServerUrl);
     final accessToken = await storage.read(key: AppConstants.keyAccessToken);
     final refreshToken = await storage.read(key: AppConstants.keyRefreshToken);
+    final oauthClientId = await storage.read(key: AppConstants.keyOauthClientId);
 
     if (serverUrl == null || accessToken == null) return;
 
@@ -50,7 +51,9 @@ Future<void> _performWaterLevelCheck() async {
           '$serverUrl/oauth/token',
           data: {
             'grant_type': 'refresh_token',
-            'client_id': AppConstants.oauthClientId,
+            'client_id': (oauthClientId == null || oauthClientId.isEmpty)
+                ? AppConstants.oauthClientId
+                : oauthClientId,
             'refresh_token': refreshToken,
           },
           options: Options(contentType: Headers.formUrlEncodedContentType),

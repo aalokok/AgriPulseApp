@@ -78,6 +78,7 @@ class AuthNotifier extends Notifier<AuthState> {
     required String serverUrl,
     required String username,
     required String password,
+    String? oauthClientId,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -85,22 +86,26 @@ class AuthNotifier extends Notifier<AuthState> {
         serverUrl: serverUrl,
         username: username,
         password: password,
+        oauthClientId: oauthClientId,
       );
       state = AuthState(
         status: AuthStatus.authenticated,
         serverUrl: _authService.serverUrl,
       );
     } on DioException catch (e) {
+      final oauthMessage = _extractOauthErrorMessage(e.response?.data);
       final message = switch (e.response?.statusCode) {
         400 => 'Invalid credentials. Please check your username and password.',
         401 => 'Authentication failed. Please check your credentials.',
+        404 =>
+          'Login endpoint not found. Use your farm base URL only (not /dashboard or /api).',
         _ => e.response?.statusCode != null
             ? 'Server error (${e.response!.statusCode}). Please try again.'
             : 'Could not connect to server. Please check the URL.',
       };
       state = state.copyWith(
         isLoading: false,
-        errorMessage: message,
+        errorMessage: oauthMessage ?? message,
         status: AuthStatus.unauthenticated,
       );
     } catch (e) {
@@ -115,6 +120,21 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> logout() async {
     await _authService.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  String? _extractOauthErrorMessage(dynamic data) {
+    if (data is! Map) return null;
+    final error = data['error']?.toString();
+    final description = data['error_description']?.toString();
+    if (error == null && description == null) return null;
+
+    return switch (error) {
+      'invalid_client' =>
+        'Server OAuth client is not allowed for this app. Ask the farmOS admin to enable password grant for the provided client_id.',
+      'invalid_grant' =>
+        'Invalid username/password, or password grant is disabled for your account.',
+      _ => description ?? 'Authentication failed ($error).',
+    };
   }
 }
 

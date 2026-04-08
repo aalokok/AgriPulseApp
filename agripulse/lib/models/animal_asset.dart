@@ -72,8 +72,6 @@ class AnimalAsset {
   Map<String, dynamic> toJsonApiAttributes() {
     return {
       'name': name,
-      'status': status,
-      if (animalType != null) 'animal_type': animalType,
       if (idTags.isNotEmpty) 'id_tag': idTags.map((t) => t.toJson()).toList(),
       if (notes != null)
         'notes': {'value': notes, 'format': 'default'},
@@ -81,21 +79,42 @@ class AnimalAsset {
     };
   }
 
-  Map<String, dynamic> toCreatePayload() {
+  Map<String, dynamic> toCreatePayload({
+    required String animalTypeTermId,
+  }) {
     return {
       'data': {
         'type': 'asset--animal',
         'attributes': toJsonApiAttributes(),
+        'relationships': {
+          'animal_type': {
+            'data': {
+              'type': 'taxonomy_term--animal_type',
+              'id': animalTypeTermId,
+            },
+          },
+        },
       },
     };
   }
 
-  Map<String, dynamic> toUpdatePayload() {
+  Map<String, dynamic> toUpdatePayload({
+    String? animalTypeTermId,
+  }) {
     return {
       'data': {
         'type': 'asset--animal',
         'id': id,
         'attributes': toJsonApiAttributes(),
+        if (animalTypeTermId != null)
+          'relationships': {
+            'animal_type': {
+              'data': {
+                'type': 'taxonomy_term--animal_type',
+                'id': animalTypeTermId,
+              },
+            },
+          },
       },
     };
   }

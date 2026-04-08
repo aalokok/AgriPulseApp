@@ -57,15 +57,14 @@ class _CattleFormScreenState extends ConsumerState<CattleFormScreen> {
       final service = ref.read(animalServiceProvider);
 
       final idTags = _tagIdController.text.trim().isNotEmpty
-          ? [IdTag(id: _tagIdController.text.trim(), type: 'ear_tag')]
+          ? [IdTag(id: _tagIdController.text.trim())]
           : <IdTag>[];
 
       final animal = AnimalAsset(
         id: widget.id ?? '',
         name: _nameController.text.trim(),
         status: _status,
-        animalType:
-            _breedController.text.trim().isNotEmpty ? _breedController.text.trim() : null,
+        animalType: _breedController.text.trim(),
         idTags: idTags,
         notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
         sex: _sex,
@@ -151,10 +150,13 @@ class _CattleFormScreenState extends ConsumerState<CattleFormScreen> {
             TextFormField(
               controller: _breedController,
               decoration: const InputDecoration(
-                labelText: 'Breed / Type',
+                labelText: 'Breed / Type *',
                 prefixIcon: Icon(Icons.category_outlined),
               ),
               textInputAction: TextInputAction.next,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Breed / Type is required'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(

@@ -112,11 +112,20 @@ class FarmosClient {
     String resourceType,
     Map<String, dynamic> payload,
   ) async {
-    final response = await _dio.post(
-      '$_baseUrl/$resourceType',
-      data: payload,
-    );
-    return response.data['data'] as Map<String, dynamic>;
+    var requestPayload = _sanitizePayload(resourceType, payload);
+    try {
+      final response = await _requestWithUnknownAttributeRetries(
+        resourceType: resourceType,
+        payload: requestPayload,
+        send: (candidatePayload) => _dio.post(
+          '$_baseUrl/$resourceType',
+          data: candidatePayload,
+        ),
+      );
+      return response.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_formatDioError(e));
+    }
   }
 
   /// PATCH an existing JSON:API resource.
@@ -125,11 +134,20 @@ class FarmosClient {
     String id,
     Map<String, dynamic> payload,
   ) async {
-    final response = await _dio.patch(
-      '$_baseUrl/$resourceType/$id',
-      data: payload,
-    );
-    return response.data['data'] as Map<String, dynamic>;
+    var requestPayload = _sanitizePayload(resourceType, payload);
+    try {
+      final response = await _requestWithUnknownAttributeRetries(
+        resourceType: resourceType,
+        payload: requestPayload,
+        send: (candidatePayload) => _dio.patch(
+          '$_baseUrl/$resourceType/$id',
+          data: candidatePayload,
+        ),
+      );
+      return response.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_formatDioError(e));
+    }
   }
 
   /// DELETE a JSON:API resource.
@@ -150,5 +168,89 @@ class FarmosClient {
       }),
     );
     return response.data as Map<String, dynamic>;
+  }
+
+  String _formatDioError(DioException e) {
+    final status = e.response?.statusCode;
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final message = data['message'] ??
+          data['error'] ??
+          data['title'] ??
+          (data['errors'] is List && (data['errors'] as List).isNotEmpty
+              ? (data['errors'] as List).first.toString()
+              : null);
+      if (message != null) {
+        return 'HTTP ${status ?? 'error'}: $message';
+      }
+    }
+    return 'HTTP ${status ?? 'error'}: ${e.message ?? 'Request failed'}';
+  }
+
+  Map<String, dynamic> _sanitizePayload(
+    String resourceType,
+    Map<String, dynamic> payload,
+  ) {
+    return payload;
+  }
+
+  Future<Response<dynamic>> _requestWithUnknownAttributeRetries({
+    required String resourceType,
+    required Map<String, dynamic> payload,
+    required Future<Response<dynamic>> Function(
+      Map<String, dynamic> candidatePayload,
+    ) send,
+  }) async {
+    var candidate = _sanitizePayload(resourceType, payload);
+
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        return await send(candidate);
+      } on DioException catch (e) {
+        final attr = _extractUnknownAttribute(e);
+        if (attr == null) rethrow;
+
+        final updated = _removeAttribute(candidate, attr);
+        if (updated == null) rethrow;
+        candidate = updated;
+      }
+    }
+
+    throw DioException(
+      requestOptions: RequestOptions(path: '$_baseUrl/$resourceType'),
+      error: 'Request failed after removing unsupported attributes.',
+    );
+  }
+
+  Map<String, dynamic>? _removeAttribute(
+    Map<String, dynamic> payload,
+    String attr,
+  ) {
+    final cloned = Map<String, dynamic>.from(payload);
+    final data = cloned['data'];
+    if (data is! Map<String, dynamic>) return null;
+
+    final clonedData = Map<String, dynamic>.from(data);
+    final attributes = clonedData['attributes'];
+    if (attributes is! Map<String, dynamic>) return null;
+
+    final clonedAttributes = Map<String, dynamic>.from(attributes);
+    if (!clonedAttributes.containsKey(attr)) return null;
+    clonedAttributes.remove(attr);
+
+    clonedData['attributes'] = clonedAttributes;
+    cloned['data'] = clonedData;
+    return cloned;
+  }
+
+  String? _extractUnknownAttribute(DioException error) {
+    final data = error.response?.data;
+    if (data is! Map<String, dynamic>) return null;
+    final detail = data['detail']?.toString();
+    if (detail == null) return null;
+
+    final match = RegExp(r'attribute ([a-zA-Z0-9_]+) does not exist')
+        .firstMatch(detail);
+    return match?.group(1);
   }
 }

@@ -38,7 +38,6 @@ class _WaterLevelScreenState extends ConsumerState<WaterLevelScreen> {
           .getChartData(days: _chartDays);
       if (mounted) setState(() => _chartData = data);
     } catch (_) {
-      // Chart data failed to load — not critical
     } finally {
       if (mounted) setState(() => _loadingChart = false);
     }
@@ -68,6 +67,21 @@ class _WaterLevelScreenState extends ConsumerState<WaterLevelScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      // Sensor filter
+                      if (state.sensors.length > 1) ...[
+                        _SensorFilter(
+                          sensors: state.sensors,
+                          selectedId: state.selectedSensorId,
+                          onChanged: (id) {
+                            ref
+                                .read(waterLevelProvider.notifier)
+                                .selectSensor(id);
+                            _loadChartData();
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       // Current reading
                       WaterLevelCard(
                         reading: state.latestReading,
@@ -144,11 +158,13 @@ class _WaterLevelScreenState extends ConsumerState<WaterLevelScreen> {
                             headingRowColor: WidgetStatePropertyAll(
                               theme.colorScheme.surfaceContainerHighest,
                             ),
-                            columns: const [
-                              DataColumn(label: Text('Time')),
-                              DataColumn(
+                            columns: [
+                              const DataColumn(label: Text('Time')),
+                              const DataColumn(
                                   label: Text('Level'), numeric: true),
-                              DataColumn(label: Text('Status')),
+                              if (state.selectedSensorId == null)
+                                const DataColumn(label: Text('Sensor')),
+                              const DataColumn(label: Text('Status')),
                             ],
                             rows: state.recentReadings.take(20).map((log) {
                               final isLow = log.value != null &&
@@ -164,7 +180,7 @@ class _WaterLevelScreenState extends ConsumerState<WaterLevelScreen> {
                                   DataCell(Text(
                                     log.value != null
                                         ? '${log.value!.toStringAsFixed(1)} ${log.units}'
-                                        : '—',
+                                        : '\u2014',
                                     style:
                                         theme.textTheme.bodySmall?.copyWith(
                                       color: isLow
@@ -175,6 +191,11 @@ class _WaterLevelScreenState extends ConsumerState<WaterLevelScreen> {
                                           : null,
                                     ),
                                   )),
+                                  if (state.selectedSensorId == null)
+                                    DataCell(Text(
+                                      log.sensorName,
+                                      style: theme.textTheme.bodySmall,
+                                    )),
                                   DataCell(Text(
                                     log.status,
                                     style: theme.textTheme.bodySmall,
@@ -187,6 +208,52 @@ class _WaterLevelScreenState extends ConsumerState<WaterLevelScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+class _SensorFilter extends StatelessWidget {
+  final List<SensorInfo> sensors;
+  final String? selectedId;
+  final ValueChanged<String?> onChanged;
+
+  const _SensorFilter({
+    required this.sensors,
+    required this.selectedId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: 'Sensor',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedId ?? '_all',
+          isExpanded: true,
+          isDense: true,
+          style: theme.textTheme.bodyLarge,
+          items: [
+            const DropdownMenuItem(
+              value: '_all',
+              child: Text('All sensors'),
+            ),
+            ...sensors.map((s) => DropdownMenuItem(
+                  value: s.id,
+                  child: Text('${s.name} (field ${s.fieldNumber})'),
+                )),
+          ],
+          onChanged: (value) {
+            onChanged(value == '_all' ? null : value);
+          },
+        ),
+      ),
     );
   }
 }

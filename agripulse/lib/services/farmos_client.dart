@@ -24,8 +24,10 @@ class FarmosClient {
     ));
   }
 
-  String get _baseUrl => '${_authService.serverUrl}/api';
-  String get _serverUrl => _authService.serverUrl;
+  String get _serverUrl =>
+      _authService.serverUrl ??
+      (throw StateError('Server URL is not configured. Please log in first.'));
+  String get _baseUrl => '$_serverUrl/api';
 
   Future<void> _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {

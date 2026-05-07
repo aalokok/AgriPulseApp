@@ -3,13 +3,52 @@ import 'farmos_client.dart';
 
 class AnimalRecordService {
   final FarmosClient _client;
+  final bool _demoMode;
+  static final Map<String, List<AnimalRecord>> _demoRecordsByAnimal = {
+    'demo-1': [
+      AnimalRecord(
+        id: 'r-1',
+        type: AnimalRecordType.medical,
+        title: 'Hoof check completed',
+        timestamp: DateTime.now().subtract(const Duration(days: 1)),
+        notes: 'No issues observed.',
+      ),
+      AnimalRecord(
+        id: 'r-2',
+        type: AnimalRecordType.activity,
+        title: 'Moved to paddock 2',
+        timestamp: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+    ],
+    'demo-2': [
+      AnimalRecord(
+        id: 'r-3',
+        type: AnimalRecordType.input,
+        title: 'Supplemental feed added',
+        timestamp: DateTime.now().subtract(const Duration(days: 2)),
+      ),
+    ],
+  };
 
-  AnimalRecordService(this._client);
+  AnimalRecordService(this._client, {bool demoMode = false})
+      : _demoMode = demoMode;
 
   Future<List<AnimalRecord>> getRecordsForAnimal(
     String animalId, {
     int limitPerType = 5,
   }) async {
+    if (_demoMode) {
+      final records = List<AnimalRecord>.from(
+        _demoRecordsByAnimal[animalId] ?? const [],
+      );
+      records.sort((a, b) {
+        final aTs = a.timestamp?.millisecondsSinceEpoch ?? 0;
+        final bTs = b.timestamp?.millisecondsSinceEpoch ?? 0;
+        return bTs.compareTo(aTs);
+      });
+      return records.take(limitPerType * 2).toList();
+    }
+
     final all = <AnimalRecord>[];
 
     for (final type in AnimalRecordType.values) {
@@ -43,6 +82,21 @@ class AnimalRecordService {
     DateTime? timestamp,
     String? notes,
   }) async {
+    if (_demoMode) {
+      final current = _demoRecordsByAnimal[animalId] ?? <AnimalRecord>[];
+      _demoRecordsByAnimal[animalId] = [
+        AnimalRecord(
+          id: 'r-${DateTime.now().microsecondsSinceEpoch}',
+          type: type,
+          title: title,
+          timestamp: timestamp ?? DateTime.now(),
+          notes: notes?.trim().isEmpty == true ? null : notes?.trim(),
+        ),
+        ...current,
+      ];
+      return;
+    }
+
     final ts = timestamp ?? DateTime.now();
     final tsFormatted = _formatFarmOsTimestamp(ts);
     final attrs = <String, dynamic>{

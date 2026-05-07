@@ -16,15 +16,27 @@ final farmosClientProvider = Provider<FarmosClient>((ref) {
 });
 
 final animalServiceProvider = Provider<AnimalService>((ref) {
-  return AnimalService(ref.read(farmosClientProvider));
+  final isDemoMode = ref.watch(authProvider).isDemoMode;
+  return AnimalService(
+    ref.read(farmosClientProvider),
+    demoMode: isDemoMode,
+  );
 });
 
 final animalRecordServiceProvider = Provider<AnimalRecordService>((ref) {
-  return AnimalRecordService(ref.read(farmosClientProvider));
+  final isDemoMode = ref.watch(authProvider).isDemoMode;
+  return AnimalRecordService(
+    ref.read(farmosClientProvider),
+    demoMode: isDemoMode,
+  );
 });
 
 final waterLevelServiceProvider = Provider<WaterLevelService>((ref) {
-  return WaterLevelService(ref.read(farmosClientProvider));
+  final isDemoMode = ref.watch(authProvider).isDemoMode;
+  return WaterLevelService(
+    ref.read(farmosClientProvider),
+    demoMode: isDemoMode,
+  );
 });
 
 // ── Auth state ──────────────────────────────────────────────────────────
@@ -36,12 +48,14 @@ class AuthState {
   final String? serverUrl;
   final String? errorMessage;
   final bool isLoading;
+  final bool isDemoMode;
 
   const AuthState({
     this.status = AuthStatus.unknown,
     this.serverUrl,
     this.errorMessage,
     this.isLoading = false,
+    this.isDemoMode = false,
   });
 
   AuthState copyWith({
@@ -49,12 +63,14 @@ class AuthState {
     String? serverUrl,
     String? errorMessage,
     bool? isLoading,
+    bool? isDemoMode,
   }) {
     return AuthState(
       status: status ?? this.status,
       serverUrl: serverUrl ?? this.serverUrl,
       errorMessage: errorMessage,
       isLoading: isLoading ?? this.isLoading,
+      isDemoMode: isDemoMode ?? this.isDemoMode,
     );
   }
 
@@ -73,9 +89,13 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState(
         status: AuthStatus.authenticated,
         serverUrl: _authService.serverUrl,
+        isDemoMode: false,
       );
     } else {
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        isDemoMode: false,
+      );
     }
   }
 
@@ -96,6 +116,7 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState(
         status: AuthStatus.authenticated,
         serverUrl: _authService.serverUrl,
+        isDemoMode: false,
       );
     } on DioException catch (e) {
       final oauthMessage = _extractOauthErrorMessage(e.response?.data);
@@ -124,7 +145,18 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _authService.logout();
-    state = const AuthState(status: AuthStatus.unauthenticated);
+    state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      isDemoMode: false,
+    );
+  }
+
+  void continueInDemoMode() {
+    state = const AuthState(
+      status: AuthStatus.authenticated,
+      serverUrl: 'demo://local',
+      isDemoMode: true,
+    );
   }
 
   String? _extractOauthErrorMessage(dynamic data) {

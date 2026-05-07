@@ -67,7 +67,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    authState.serverUrl ?? '—',
+                    authState.isDemoMode
+                        ? 'Demo data mode'
+                        : (authState.serverUrl ?? '—'),
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
@@ -85,7 +87,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(width: 6),
                       Text(
                         authState.isAuthenticated
-                            ? 'Connected'
+                            ? (authState.isDemoMode
+                                ? 'Connected (demo)'
+                                : 'Connected')
                             : 'Disconnected',
                         style: theme.textTheme.bodySmall,
                       ),

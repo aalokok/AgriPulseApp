@@ -197,6 +197,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           )
                         : const Text('Connect'),
                   ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: authState.isLoading
+                        ? null
+                        : () =>
+                            ref.read(authProvider.notifier).continueInDemoMode(),
+                    icon: const Icon(Icons.play_arrow_outlined),
+                    label: const Text('Use Demo Mode (Skip Login)'),
+                  ),
                   const SizedBox(height: 48),
                 ],
               ),
